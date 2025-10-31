@@ -2,7 +2,7 @@
 
 ## 🎯 Introducción
 
-Este documento contiene toda la información necesaria para comenzar el desarrollo del sistema de microservicios. El proyecto está diseñado con una arquitectura modular donde cada servicio tiene responsabilidades específicas y se comunica a través de un API Gateway centralizado.
+Este documento contiene toda la información necesaria para comenzar el desarrollo del sistema de microservicios. El proyecto está diseñado con una arquitectura modular donde cada servicio tiene responsabilidades específicas y se comunica a través de un API Gateway centralizado. Además esta diseñado para que los servicios se desarrollen por separado. Tomar muy encuenta las APIs Reset, para la contruccion de los servicios con el flujo del software.
 
 ---
 

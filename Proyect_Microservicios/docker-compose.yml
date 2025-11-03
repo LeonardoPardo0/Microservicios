@@ -9,10 +9,10 @@ services:
     container_name: mongodb
     restart: always
     ports:
-      - "${MONGO_PORT}:27017"
+      - "${MONGO_PORT:-27017}:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-admin123}
     volumes:
       - mongodb_data:/data/db
     networks:
@@ -26,7 +26,7 @@ services:
     container_name: auth-service
     restart: always
     ports:
-      - "${AUTH_PORT}:3000"
+      - "${AUTH_PORT:-3000}:3000"
     env_file:
       - .env
     depends_on:
@@ -35,6 +35,7 @@ services:
       - microservices-network
     volumes:
       - ./services/auth-service:/app
+      - /app/node_modules
 
   # ======================================================
   # Servicio de Productos
@@ -44,7 +45,7 @@ services:
     container_name: products-service
     restart: always
     ports:
-      - "${PRODUCTS_PORT}:3001"
+      - "${PRODUCTS_PORT:-3001}:3001"
     env_file:
       - .env
     depends_on:
@@ -54,6 +55,7 @@ services:
       - microservices-network
     volumes:
       - ./services/products-service:/app
+      - /app/node_modules
 
   # ======================================================
   # Servicio de Inventario
@@ -63,7 +65,7 @@ services:
     container_name: inventory-service
     restart: always
     ports:
-      - "${INVENTORY_PORT}:3002"
+      - "${INVENTORY_PORT:-3002}:3002"
     env_file:
       - .env
     depends_on:
@@ -73,6 +75,7 @@ services:
       - microservices-network
     volumes:
       - ./services/inventory-service:/app
+      - /app/node_modules
 
   # ======================================================
   # Servicio de Órdenes
@@ -82,7 +85,7 @@ services:
     container_name: orders-service
     restart: always
     ports:
-      - "${ORDERS_PORT}:3003"
+      - "${ORDERS_PORT:-3003}:3003"
     env_file:
       - .env
     depends_on:
@@ -92,6 +95,7 @@ services:
       - microservices-network
     volumes:
       - ./services/orders-service:/app
+      - /app/node_modules
 
   # ======================================================
   # Servicio de Facturación
@@ -101,7 +105,7 @@ services:
     container_name: billing-service
     restart: always
     ports:
-      - "${BILLING_PORT}:3004"
+      - "${BILLING_PORT:-3004}:3004"
     env_file:
       - .env
     depends_on:
@@ -111,6 +115,7 @@ services:
       - microservices-network
     volumes:
       - ./services/billing-service:/app
+      - /app/node_modules
 
   # ======================================================
   # Servicio de Reportes
@@ -120,7 +125,7 @@ services:
     container_name: reports-service
     restart: always
     ports:
-      - "${REPORTS_PORT}:3005"
+      - "${REPORTS_PORT:-3005}:3005"
     env_file:
       - .env
     depends_on:
@@ -130,6 +135,7 @@ services:
       - microservices-network
     volumes:
       - ./services/reports-service:/app
+      - /app/node_modules
 
   # ======================================================
   # API Gateway (Nginx)
@@ -139,7 +145,7 @@ services:
     container_name: api-gateway
     restart: always
     ports:
-      - "${GATEWAY_PORT}:80"
+      - "${GATEWAY_PORT:-8080}:80"
     volumes:
       - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
@@ -153,14 +159,14 @@ services:
       - microservices-network
 
   # ======================================================
-  # Frontend (unificado)
+  # Frontend (React/Vue/Angular)
   # ======================================================
   frontend:
     build: ./frontend
     container_name: frontend
     restart: always
     ports:
-      - "${FRONTEND_PORT}:80"
+      - "${FRONTEND_PORT:-3006}:80"
     env_file:
       - .env
     depends_on:
@@ -169,29 +175,30 @@ services:
       - microservices-network
     volumes:
       - ./frontend:/app
+      - /app/node_modules
 
   # ======================================================
-  # Mongo Express (panel web de MongoDB)
+  # Mongo Express (visualizador web)
   # ======================================================
   mongo-express:
     image: mongo-express:latest
     container_name: mongo-express
     restart: always
     ports:
-      - "${MONGO_EXPRESS_PORT}:8081"
+      - "${MONGO_EXPRESS_PORT:-8081}:8081"
     environment:
-      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_INITDB_ROOT_USERNAME}
-      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
-      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/
-      ME_CONFIG_BASICAUTH_USERNAME: ${MONGO_EXPRESS_USER}
-      ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_EXPRESS_PASS}
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_INITDB_ROOT_USERNAME:-admin}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-admin123}
+      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD:-admin123}@mongodb:27017/
+      ME_CONFIG_BASICAUTH_USERNAME: ${MONGO_EXPRESS_USER:-admin}
+      ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_EXPRESS_PASS:-1234}
     depends_on:
       - mongodb
     networks:
       - microservices-network
 
 # ======================================================
-# Redes y volúmenes
+# Redes y Volúmenes
 # ======================================================
 networks:
   microservices-network:

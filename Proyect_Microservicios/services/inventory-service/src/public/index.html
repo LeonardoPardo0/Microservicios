@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Inventory Service</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">  
+  <style>
+    body { font-family: Arial, sans-serif; background: #f7f7f7; margin: 0; padding: 0; }
+    .container { max-width: 800px; margin: 40px auto; background: #fff; padding: 32px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);}
+    h1 { color: #2c3e50; }
+    p { color: #555; }
+    table { width: 100%; border-collapse: collapse; margin-top: 24px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background: #eaf6fb; }
+    tr:nth-child(even) { background: #f9f9f9; }
+    .form-section { margin-top: 32px; }
+    .form-group { margin-bottom: 12px; }
+    label { display: block; margin-bottom: 4px; }
+    input, select { width: 100%; padding: 6px; }
+    button { background: #007acc; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; }
+    button:hover { background: #005fa3; }
+    .actions button { margin-right: 6px; }
+    .msg { margin: 12px 0; color: #007acc; }
+    .error { color: #c00; }
+    .warehouse-section { margin-top: 48px; padding: 24px; background: #f4faff; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Gestión de Inventario</h1>
+    <div id="msg" class="msg"></div>
+    <table id="inventoryTable">
+      <thead>
+        <tr>
+          <th>ID Producto</th>
+          <th>Producto</th>
+          <th>Cantidad</th>
+          <th>Ubicación</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="form-section">
+      <h2>Agregar/Actualizar Inventario</h2>
+      <form id="inventoryForm">
+        <div class="form-group">
+          <label for="productId">ID Producto</label>
+          <input type="text" id="productId" required>
+        </div>
+        <div class="form-group">
+          <label for="productName">Nombre Producto</label>
+          <input type="text" id="productName" required>
+        </div>
+        <div class="form-group">
+          <label for="quantity">Cantidad</label>
+          <input type="number" id="quantity" min="0" required>
+        </div>
+        <div class="form-group">
+          <label for="location">Ubicación</label>
+          <select id="location" required>
+          </select>
+        </div>
+        <button type="submit">Guardar</button>
+      </form>
+    </div>
+
+    <div class="warehouse-section">
+      <h2>Agregar Almacén</h2>
+      <form id="warehouseForm">
+        <div class="form-group">
+          <label for="warehouseName">Nombre del almacén</label>
+          <input type="text" id="warehouseName" required>
+        </div>
+        <div class="form-group">
+          <label for="warehouseAddress">Dirección</label>
+          <input type="text" id="warehouseAddress">
+        </div>
+        <button type="submit">Crear almacén</button>
+      </form>
+    </div>
+  </div>
+  <script>
+  const API_URL = "/inventory";
+  const WAREHOUSE_API_URL = "/warehouses";
+  const tableBody = document.querySelector("#inventoryTable tbody");
+  const msgDiv = document.getElementById("msg");
+  const form = document.getElementById("inventoryForm");
+  const locationSelect = document.getElementById("location");
+  const warehouseForm = document.getElementById("warehouseForm");
+
+  let almacenes = [];
+
+  function showMsg(text, error = false) {
+    msgDiv.textContent = text;
+    msgDiv.className = error ? "msg error" : "msg";
+    setTimeout(() => { msgDiv.textContent = ""; }, 3000);
+  }
+
+  async function loadWarehouses() {
+    try {
+      const res = await fetch(WAREHOUSE_API_URL);
+      const data = await res.json();
+      if (data.success) {
+        almacenes = data.data;
+        locationSelect.innerHTML = "";
+        almacenes.forEach(almacen => {
+          const option = document.createElement("option");
+          option.value = almacen.warehouseId;
+          option.textContent = almacen.name;
+          locationSelect.appendChild(option);
+        });
+      } else {
+        showMsg("Error al cargar almacenes", true);
+      }
+    } catch (e) {
+      showMsg("Error de conexión al cargar almacenes", true);
+    }
+  }
+
+  function getNombreAlmacen(id) {
+    const almacen = almacenes.find(a => String(a.warehouseId) === String(id));
+    return almacen ? almacen.name : id;
+  }
+
+  const statusMap = {
+    1: "disponible",
+    2: "stock bajo",
+    3: "agotado",
+    4: "descontinuado"
+  };
+
+  async function loadInventory() {
+    tableBody.innerHTML = "<tr><td colspan='7'>Cargando...</td></tr>";
+    try {
+      const res = await fetch(API_URL);
+      const data = await res.json();
+      if (data.success) {
+        if (data.data.length === 0) {
+          tableBody.innerHTML = "<tr><td colspan='7'>Sin registros</td></tr>";
+          return;
+        }
+        tableBody.innerHTML = "";
+        data.data.forEach(item => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${item.productId}</td>
+            <td>${item.productName}</td>
+            <td>${item.quantity}</td>
+            <td>${getNombreAlmacen(item.location)}</td>
+            <td>${statusMap[Number(item.status)]}</td>
+            <td class="actions">
+              <button onclick="editInventory('${item.productId}')">Editar</button>
+              <button onclick="deleteInventory('${item.productId}')">Eliminar</button>
+              <button onclick="showStockModal('${item.productId}', 1)">+ Stock</button>
+              <button onclick="showStockModal('${item.productId}', 2)">- Stock</button>
+            </td>
+          `;
+          tableBody.appendChild(tr);
+        });
+      } else {
+        showMsg("Error al cargar inventario", true);
+      }
+    } catch (e) {
+      tableBody.innerHTML = "<tr><td colspan='7'>Error de conexión</td></tr>";
+    }
+  }
+
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const productId = parseInt(document.getElementById("productId").value.trim(), 10);
+    const productName = document.getElementById("productName").value.trim();
+    const quantity = parseInt(document.getElementById("quantity").value, 10);
+    const location = Number(document.getElementById("location").value);
+
+    try {
+      let res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId, productName, quantity, location })
+      });
+      let data = await res.json();
+      if (!data.success && data.message && data.message.includes("existe")) {
+        res = await fetch(`${API_URL}/${productId}/stock`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ quantity, operation: 1 })
+        });
+        data = await res.json();
+      }
+      if (data.success) {
+        showMsg("Inventario guardado correctamente");
+        form.reset();
+        loadInventory();
+      } else {
+        showMsg(data.message || "Error al guardar", true);
+      }
+    } catch (e) {
+      showMsg("Error de conexión", true);
+    }
+  };
+
+  warehouseForm.onsubmit = async (e) => {
+    e.preventDefault();
+    const name = document.getElementById("warehouseName").value.trim();
+    const address = document.getElementById("warehouseAddress").value.trim();
+    try {
+      const res = await fetch(WAREHOUSE_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, address })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showMsg("Almacén creado correctamente");
+        warehouseForm.reset();
+        await loadWarehouses();
+      } else {
+        showMsg(data.message || "Error al crear almacén", true);
+      }
+    } catch (e) {
+      showMsg("Error de conexión al crear almacén", true);
+    }
+  };
+
+  window.editInventory = async (productId) => {
+    try {
+      const res = await fetch(`${API_URL}/${productId}`);
+      const data = await res.json();
+      if (data.success) {
+        const item = data.data;
+        document.getElementById("productId").value = item.productId;
+        document.getElementById("productName").value = item.productName;
+        document.getElementById("quantity").value = item.quantity;
+        document.getElementById("location").value = item.location;
+      }
+    } catch (e) {
+      showMsg("Error al cargar producto", true);
+    }
+  };
+
+  window.deleteInventory = async (productId) => {
+    if (!confirm("¿Eliminar este inventario?")) return;
+    try {
+      const res = await fetch(`${API_URL}/${productId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.success) {
+        showMsg("Inventario eliminado");
+        loadInventory();
+      } else {
+        showMsg(data.message || "Error al eliminar", true);
+      }
+    } catch (e) {
+      showMsg("Error de conexión", true);
+    }
+  };
+
+  // Operaciones de stock (add/subtract)
+  window.showStockModal = async (productId, operation) => {
+    const opText = operation === 1 ? "sumar" : "restar";
+    const qty = prompt(`¿Cuánto stock deseas ${opText}?`);
+    const quantity = parseInt(qty, 10);
+    if (!quantity || quantity <= 0) return;
+
+    try {
+      const res = await fetch(`/inventory/${productId}/stock`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quantity, operation })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showMsg("Stock actualizado correctamente");
+        loadInventory();
+      } else {
+        showMsg(data.message || "Error al actualizar stock", true);
+      }
+    } catch (e) {
+      showMsg("Error de conexión al actualizar stock", true);
+    }
+  };
+
+  // Inicializar: primero almacenes, luego inventario
+  loadWarehouses().then(loadInventory);
+  </script>
+</body>
+</html>
